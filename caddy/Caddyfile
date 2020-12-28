@@ -1,3 +1,7 @@
 invoiceninja.earthmanlabs.com {
     reverse_proxy 127.0.0.1:9000
 }
+
+cockpit.earthmanlabs.com {
+    reverse_proxy 127.0.0.1:9090
+}

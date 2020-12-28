@@ -1,18 +1,9 @@
 ---
 - name: Setup Docker InvoiceNinja
-  hosts: earthmanlabs.com
+  hosts: entrapta
   remote_user: jake
 
   tasks:
-  - name: Install pip
-    become: yes
-    apt:
-      name: 
-        - python3
-        - python3-pip
-        - python
-        - python-pip
-
   - name: Install docker-py
     become: yes
     pip: 
@@ -23,37 +14,56 @@
     docker_network:
       name: ninja-net
 
+  - name: Create Volumes
+    docker_volume:
+      name: "{{ item }}"
+    with_items:
+      - ninjadb_data
+        # - invoiceninja_storage
+        # - invoiceninja_public
+
   - name: Setup MariaDB 
     docker_container:
-      name: mariadb
+      name: ninjadb
       image: mariadb:10
       volumes:
-        - mariadb_data:/var/lib/mysql
+        - ninjadb_data:/var/lib/mysql
       env:
         MYSQL_RANDOM_ROOT_PASSWORD: "yes"
         MYSQL_USER: ninja
-        MYSQL_PASSWORD: "{{ mysql_password }}"
+        MYSQL_PASSWORD: ninja
         MYSQL_DATABASE: ninja
       networks:
         - name: ninja-net
 
+  - name: Make directories
+    file:
+      name: "/home/jake/.{{ item }}"
+      state: directory
+    with_items:
+      - invoiceninja_public
+      - invoiceninja_storage
+
   - name: Setup InvoiceNinja
     docker_container:
       name: invoiceninja
-      image: invoiceninja/invoiceninja
+      image: invoiceninja/invoiceninja:alpine-4
       volumes:
-        - /home/jake/invoiceninja/public:/var/app/public
-        - /home/jake/invoiceninja/storage:/var/app/storage
+        - /home/jake/.invoiceninja_public:/var/app/public
+        - /home/jake/.invoiceninja_storage:/var/app/storage
       env:
-        APP_ENV: production
-        APP_DEBUG: "0"
-        APP_URL: "https://invoiceninja.earthmanlabs.com"
+        APP_DEBUG: "true"
+        APP_KEY: "{{ app_key }}"
+        APP_URL: "https://invoiceninja.skinet.org"
         APP_CIPHER: "AES-256-CBC"
         DB_TYPE: mysql
-        DB_HOST: mariadb
-        DB_DATABASE: ninja
+        DB_HOST: ninja
         DB_USERNAME: ninja
-        DB_PASSWORD: "{{ mysql_password }}"
+        DB_PASSWORD: ninja
+        DB_DATABASE: ninja
+        LOG: single
       ports:
-        - "9000:9000"
+        - "9988:9000"
+      networks:
+        - name: ninja-net
 
